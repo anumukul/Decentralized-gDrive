@@ -1,7 +1,6 @@
-
 import Upload from './artifacts/contracts/Upload.sol/Upload.json';
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { ethers, BrowserProvider } from "ethers";
 import FileUpload from "./components/FileUpload";
 import Display from "./components/Display";
 import Modal from "./components/Modal";
@@ -14,37 +13,50 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const initializeProvider = async () => {
+      try {
+        if (typeof window.ethereum !== "undefined") {
+          // Use BrowserProvider instead of Web3Provider in v6
+          const provider = new BrowserProvider(window.ethereum);
 
-    const loadProvider = async () => {
-      if (provider) {
-        window.ethereum.on("chainChanged", () => {
-          window.location.reload();
-        });
+          // Setup event listeners
+          window.ethereum.on("chainChanged", () => {
+            window.location.reload();
+          });
 
-        window.ethereum.on("accountsChanged", () => {
-          window.location.reload();
-        });
-        await provider.send("eth_requestAccounts", []);
-        const signer = provider.getSigner();
-        const address = await signer.getAddress();
-        setAccount(address);
-        let contractAddress = "0xA56a63E6a1107077ea0768311870F9F9978Ce0f1";
+          window.ethereum.on("accountsChanged", () => {
+            window.location.reload();
+          });
 
-        const contract = new ethers.Contract(
-          contractAddress,
-          Upload.abi,
-          signer
-        );
-        //console.log(contract);
-        setContract(contract);
-        setProvider(provider);
-      } else {
-        console.error("Metamask is not installed");
+          // Request accounts
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          
+          // Get signer - in v6 this is an async operation
+          const signer = await provider.getSigner();
+          const address = await signer.getAddress();
+          setAccount(address);
+
+          const contractAddress = "0xA56a63E6a1107077ea0768311870F9F9978Ce0f1";
+
+          const contract = new ethers.Contract(
+            contractAddress,
+            Upload.abi,
+            signer
+          );
+
+          setContract(contract);
+          setProvider(provider);
+        } else {
+          console.error("Metamask is not installed");
+        }
+      } catch (error) {
+        console.error("Error initializing provider:", error);
       }
     };
-    provider && loadProvider();
+
+    initializeProvider();
   }, []);
+
   return (
     <>
       {!modalOpen && (
